@@ -230,6 +230,7 @@ After 5 crashes in 10 minutes, systemd also stops retrying. Run `sudo systemctl 
 | `BOT_NAME` | No | Name shown in the welcome message (default: `Video Downloader`) |
 | `API_ID`, `API_HASH` | Yes | Uploader account credentials from my.telegram.org (`setup_session.py` can fill them in) |
 | `RELAY_CHANNEL_ID` | Yes | Private relay channel ID, e.g. `-1001234567890` (`setup_session.py` can fill it in) |
+| `ARCHIVE_CHANNEL_ID` | No | Optional second channel that receives a copy of every completed download; the uploader account must be an admin there |
 | `COOKIES_FILE` | No | Path to a `cookies.txt` ([Cookies](#cookies-age-restricted-videos-and-fewer-blocks)) |
 | `POT_PROVIDER_URL` | No | PO token provider URL, e.g. `http://127.0.0.1:4416` |
 | `ADMIN_IDS` | No | Your Telegram user ID(s), comma-separated. Admins are exempt from per-user limits and can cancel any download. Get yours from @userinfobot. |
