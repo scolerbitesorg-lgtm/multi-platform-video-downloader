@@ -62,6 +62,7 @@ Telegram bots can only upload files up to **50 MB**. This bot gets around that: 
 - ⚖️ **Fair use**: one download at a time per user, hourly limits (admins are exempt), and a server-wide queue with visible positions
 - 🐢 **Gentle on YouTube**: one request per link, spaced-out YouTube lookups, and a cache of video details and files
 - 🎞️ Prefers H.264 + AAC, so most videos arrive without re-encoding
+- 🗃️ Optional second archive channel receives an extra copy of every completed download
 - 🧹 **No leftovers**: temporary files are deleted after every download, cancel, failure and timeout, and on startup
 - 🛡️ **Safe defaults**:
   - refuses links to private networks and to the server itself
