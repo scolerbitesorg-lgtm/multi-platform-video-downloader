@@ -48,6 +48,7 @@ Telegram bots can only upload files up to **50 MB**. This bot gets around that: 
 **For users**
 
 - 🎬 **Video qualities** from 360p to 4K, plus **Best**. They also work for vertical videos (Shorts, TikTok) and ultrawide films.
+- 📚 **Playlist and multi-video pages** are processed sequentially, up to 50 entries per request, using the best available video format.
 - 🎵 **MP3 (320 kbps)** and 🎼 **FLAC**, tagged with title and artist
 - 📦 **Expected file size on every button** (`~66 MB`), and "too big" for files over Telegram's limit
 - 📊 **Live progress** while downloading, converting and uploading: progress bar, amount, speed and time left
