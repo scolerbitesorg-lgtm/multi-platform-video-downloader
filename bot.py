@@ -31,6 +31,7 @@ from config import (
     ADMIN_IDS,
     API_HASH,
     API_ID,
+    ARCHIVE_CHANNEL_ID,
     BOT_TOKEN,
     CACHE_PATH,
     FILE_CACHE_TTL,
@@ -56,6 +57,7 @@ from downloader import (
     download_video,
     get_info,
     guess_key,
+    video_choice,
 )
 from keyboards import build_quality_keyboard, cancel_keyboard, link_id
 from limits import BUSY, UserLimits
@@ -334,6 +336,7 @@ async def post_init(app: Application) -> None:
     logger.info("Pyrogram uploader client started.")
     await uploader.prime_peer_cache()
     await uploader.check_relay_channel()
+    await uploader.check_archive_channel()
     try:
         await app.bot.get_chat(RELAY_CHANNEL_ID)
     except TelegramError as e:
@@ -376,6 +379,72 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Playlist handler — sequential best-quality downloads, bounded to 50 entries
+# ---------------------------------------------------------------------------
+
+async def _download_playlist(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    status: Message,
+    url: str,
+) -> None:
+    message = update.effective_message
+    user_id = update.effective_user.id
+    try:
+        entries = await downloader.get_playlist_entries(url, max_entries=50)
+    except DownloadError as e:
+        await _edit(status, texts.error(str(e)))
+        return
+    if not entries:
+        await _edit(status, texts.error("No supported video entries were found in that playlist or page."))
+        return
+
+    verdict = limits.start_download(user_id)
+    if verdict:
+        alert = texts.busy_alert() if verdict == BUSY else texts.download_limit_alert(verdict)
+        await _edit(status, texts.error(alert))
+        return
+
+    succeeded = 0
+    failed = 0
+    chat_id = update.effective_chat.id
+    thread_id = _thread_id(message)
+    await _edit(status, texts.playlist_start(len(entries)))
+    try:
+        for index, item in enumerate(entries, 1):
+            result = None
+            title = item.get("title") or f"Video {index}"
+            try:
+                info = await get_info(item["url"])
+                title = info.title or title
+                choice = video_choice(info)
+                await _edit(status, texts.playlist_progress(index, len(entries), title, succeeded, failed))
+                result = await download_video(item["url"], choice, key=info.key)
+                relay_msg = await uploader.send_to_relay(result)
+                if ARCHIVE_CHANNEL_ID and ARCHIVE_CHANNEL_ID != RELAY_CHANNEL_ID:
+                    if not await uploader.send_to_archive(result):
+                        logger.warning("Playlist item archived unsuccessfully: %s", title)
+                evicted = await asyncio.to_thread(store.put_file, result.key, choice.label, relay_msg.id)
+                for old_id in evicted:
+                    context.application.create_task(_delete_relay_message(context.bot, old_id))
+                await _copy_to_user(context.bot, chat_id, thread_id, relay_msg.id, title, choice.is_audio)
+                succeeded += 1
+            except (DownloadError, RuntimeError, TelegramError) as e:
+                failed += 1
+                logger.warning("Playlist item failed (%s): %s", title, e)
+            except Exception:
+                failed += 1
+                logger.exception("Unexpected error processing playlist item %s", title)
+            finally:
+                if result is not None:
+                    cleanup_job_files(result.job_id)
+            await _edit(status, texts.playlist_progress(index, len(entries), title, succeeded, failed))
+    finally:
+        limits.finish_download(user_id)
+    await _edit(status, texts.playlist_done(succeeded, failed, len(entries)))
+
+
+# ---------------------------------------------------------------------------
 # Link handler — video details and the download keyboard
 # ---------------------------------------------------------------------------
 
@@ -408,6 +477,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             try:
                 info = await get_info(url, key_hint=guess, on_wait=on_wait)
             except DownloadError as e:
+                if "Playlists and profiles aren't supported" in str(e):
+                    await _download_playlist(update, context, status, url)
+                    return
                 await _edit(status, texts.error(str(e)))
                 return
             await asyncio.to_thread(store.put_video, info.to_dict(), guess)
@@ -522,6 +594,10 @@ async def handle_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         relay_msg = await uploader.send_to_relay(
             result, on_progress=updater.report, cancel_event=job.cancel_event,
         )
+        if ARCHIVE_CHANNEL_ID and ARCHIVE_CHANNEL_ID != RELAY_CHANNEL_ID:
+            archived = await uploader.send_to_archive(result)
+            if not archived:
+                logger.warning("Download succeeded but archive copy failed for %s", result.title)
         evicted = await asyncio.to_thread(store.put_file, result.key, choice.label, relay_msg.id)
         for old_id in evicted:
             context.application.create_task(_delete_relay_message(context.bot, old_id))

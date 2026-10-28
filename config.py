@@ -48,6 +48,10 @@ API_HASH: str = os.environ.get("API_HASH", "").strip()
 # Both the bot AND the user account must be admins of this channel
 RELAY_CHANNEL_ID: int = _int_env("RELAY_CHANNEL_ID", 0)
 
+# Optional permanent archive channel; when set, each completed file is also uploaded here.
+# The MTProto uploader account must be a channel admin with permission to post.
+ARCHIVE_CHANNEL_ID: int = _int_env("ARCHIVE_CHANNEL_ID", 0)
+
 # Optional Netscape-format cookies file from a logged-in browser
 # Unlocks age-restricted videos; leave unset to download without cookies
 COOKIES_FILE: str | None = os.environ.get("COOKIES_FILE") or None

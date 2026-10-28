@@ -48,6 +48,7 @@ Telegram bots can only upload files up to **50 MB**. This bot gets around that: 
 **For users**
 
 - 🎬 **Video qualities** from 360p to 4K, plus **Best**. They also work for vertical videos (Shorts, TikTok) and ultrawide films.
+- 📚 **Playlist and multi-video pages** are processed sequentially, up to 50 entries per request, using the best available video format.
 - 🎵 **MP3 (320 kbps)** and 🎼 **FLAC**, tagged with title and artist
 - 📦 **Expected file size on every button** (`~66 MB`), and "too big" for files over Telegram's limit
 - 📊 **Live progress** while downloading, converting and uploading: progress bar, amount, speed and time left
@@ -62,6 +63,7 @@ Telegram bots can only upload files up to **50 MB**. This bot gets around that: 
 - ⚖️ **Fair use**: one download at a time per user, hourly limits (admins are exempt), and a server-wide queue with visible positions
 - 🐢 **Gentle on YouTube**: one request per link, spaced-out YouTube lookups, and a cache of video details and files
 - 🎞️ Prefers H.264 + AAC, so most videos arrive without re-encoding
+- 🗃️ Optional second archive channel receives an extra copy of every completed download
 - 🧹 **No leftovers**: temporary files are deleted after every download, cancel, failure and timeout, and on startup
 - 🛡️ **Safe defaults**:
   - refuses links to private networks and to the server itself
@@ -193,7 +195,7 @@ It walks you through everything:
 
 1. If `.env` has no `API_ID` / `API_HASH`, it asks for them. Get them at [my.telegram.org](https://my.telegram.org) → *API development tools*, logged in with the uploader account.
 2. Telegram asks for the account's **phone number** (with country code), then the **login code** it sends to your Telegram app, then the **2FA password** if the account has one.
-3. It lists the channels the account is in, with their IDs. Type the number of the relay channel and it's saved as `RELAY_CHANNEL_ID`.
+3. It lists the channels the account is in, with their IDs. Type the number of the relay channel and it's saved as `RELAY_CHANNEL_ID`. If you also want a separate archive channel, set `ARCHIVE_CHANNEL_ID` in `.env` to that channel's ID; the uploader account must be an admin there.
 
 It creates `uploader.session`. Don't run it as root, or the bot won't be able to use the session file.
 
@@ -228,6 +230,7 @@ After 5 crashes in 10 minutes, systemd also stops retrying. Run `sudo systemctl 
 | `BOT_NAME` | No | Name shown in the welcome message (default: `Video Downloader`) |
 | `API_ID`, `API_HASH` | Yes | Uploader account credentials from my.telegram.org (`setup_session.py` can fill them in) |
 | `RELAY_CHANNEL_ID` | Yes | Private relay channel ID, e.g. `-1001234567890` (`setup_session.py` can fill it in) |
+| `ARCHIVE_CHANNEL_ID` | No | Optional second channel that receives a copy of every completed download; the uploader account must be an admin there |
 | `COOKIES_FILE` | No | Path to a `cookies.txt` ([Cookies](#cookies-age-restricted-videos-and-fewer-blocks)) |
 | `POT_PROVIDER_URL` | No | PO token provider URL, e.g. `http://127.0.0.1:4416` |
 | `ADMIN_IDS` | No | Your Telegram user ID(s), comma-separated. Admins are exempt from per-user limits and can cancel any download. Get yours from @userinfobot. |

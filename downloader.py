@@ -855,6 +855,57 @@ def _to_video_info(raw: dict, with_sizes: bool = False) -> VideoInfo:
     return info
 
 
+def _extract_playlist_entries_sync(url: str, max_entries: int = 50) -> list[dict[str, str]]:
+    """Return a bounded list of video URLs from a playlist/profile or multi-video page."""
+    _check_public_url(url)
+    max_entries = max(1, min(int(max_entries), 50))
+    proxied = bool(PROXY_URL) and _needs_proxy(site_of(url))
+    opts = _build_ydl_opts({
+        "skip_download": True,
+        "extract_flat": "in_playlist",
+        "noplaylist": False,
+        "playlist_items": f"1:{max_entries}",
+        "ignoreerrors": True,
+    }, proxied=proxied)
+    try:
+        with _ydl(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except yt_dlp.utils.DownloadError as e:
+        raise DownloadError(_friendly_error(str(e))) from e
+
+    entries = info.get("entries") if isinstance(info, dict) else None
+    if entries is None:
+        return []
+
+    found: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in entries:
+        if not entry:
+            continue
+        item_url = entry.get("webpage_url") or entry.get("original_url") or entry.get("url")
+        if not item_url:
+            continue
+        if not str(item_url).startswith(("http://", "https://")):
+            extractor = str(entry.get("ie_key") or entry.get("extractor_key") or "").lower()
+            if "youtube" in extractor:
+                item_url = f"https://www.youtube.com/watch?v={item_url}"
+            else:
+                continue
+        item_url = str(item_url)
+        if item_url in seen:
+            continue
+        seen.add(item_url)
+        found.append({"url": item_url, "title": str(entry.get("title") or f"Video {len(found) + 1}")})
+        if len(found) >= max_entries:
+            break
+    return found
+
+
+async def get_playlist_entries(url: str, max_entries: int = 50) -> list[dict[str, str]]:
+    """Extract up to 50 entries from a playlist-like URL, without downloading them."""
+    return await asyncio.to_thread(_extract_playlist_entries_sync, url, max_entries)
+
+
 async def get_info(
     url: str,
     key_hint: Optional[str] = None,
