@@ -195,7 +195,7 @@ It walks you through everything:
 
 1. If `.env` has no `API_ID` / `API_HASH`, it asks for them. Get them at [my.telegram.org](https://my.telegram.org) → *API development tools*, logged in with the uploader account.
 2. Telegram asks for the account's **phone number** (with country code), then the **login code** it sends to your Telegram app, then the **2FA password** if the account has one.
-3. It lists the channels the account is in, with their IDs. Type the number of the relay channel and it's saved as `RELAY_CHANNEL_ID`.
+3. It lists the channels the account is in, with their IDs. Type the number of the relay channel and it's saved as `RELAY_CHANNEL_ID`. If you also want a separate archive channel, set `ARCHIVE_CHANNEL_ID` in `.env` to that channel's ID; the uploader account must be an admin there.
 
 It creates `uploader.session`. Don't run it as root, or the bot won't be able to use the session file.
 
