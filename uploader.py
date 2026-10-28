@@ -15,6 +15,7 @@ from pyrogram.types import Message
 from config import (
     API_HASH,
     API_ID,
+    ARCHIVE_CHANNEL_ID,
     BASE_DIR,
     MAX_CONCURRENT_UPLOADS,
     MAX_UPLOAD_BYTES,
@@ -70,6 +71,20 @@ async def check_relay_channel() -> None:
     logger.info("Uploader account can reach relay channel %r", chat.title)
 
 
+async def check_archive_channel() -> None:
+    """Check the optional permanent archive channel at startup."""
+    if not ARCHIVE_CHANNEL_ID or ARCHIVE_CHANNEL_ID == RELAY_CHANNEL_ID:
+        return
+    try:
+        chat = await pyro.get_chat(ARCHIVE_CHANNEL_ID)
+    except Exception as e:
+        raise RuntimeError(
+            f"The uploader account can't open archive channel {ARCHIVE_CHANNEL_ID} ({e}). "
+            "Make sure it has joined the channel as an admin and ARCHIVE_CHANNEL_ID is right."
+        ) from e
+    logger.info("Uploader account can reach archive channel %r", chat.title)
+
+
 def upload_limit() -> int:
     """Largest file the uploader account may send (higher with Telegram Premium)."""
     return PREMIUM_MAX_UPLOAD_BYTES if pyro.me and pyro.me.is_premium else MAX_UPLOAD_BYTES
@@ -101,11 +116,15 @@ class _RateMeter:
         return speed, (total - done) / speed if total else None
 
 
-async def _send(result: DownloadResult, progress: Callable) -> Optional[Message]:
+async def _send(
+    result: DownloadResult,
+    progress: Optional[Callable],
+    chat_id: int = RELAY_CHANNEL_ID,
+) -> Optional[Message]:
     path = str(result.path)
     if result.is_audio:
         return await pyro.send_audio(
-            chat_id=RELAY_CHANNEL_ID,
+            chat_id=chat_id,
             audio=path,
             duration=result.duration,
             title=result.title[:128],
@@ -206,3 +225,20 @@ async def send_to_relay(
         logger.info("MTProto upload complete: channel message_id=%s", msg.id)
         return msg
     raise AssertionError("unreachable")
+
+
+async def send_to_archive(result: DownloadResult) -> bool:
+    """Upload a second, permanent copy when ARCHIVE_CHANNEL_ID is configured."""
+    if not ARCHIVE_CHANNEL_ID or ARCHIVE_CHANNEL_ID == RELAY_CHANNEL_ID:
+        return True
+    try:
+        msg = await _send(result, progress=None, chat_id=ARCHIVE_CHANNEL_ID)
+        if msg is None:
+            logger.warning("Archive upload returned no message for %s", result.path)
+            return False
+        logger.info("Archived file in channel %s as message_id=%s", ARCHIVE_CHANNEL_ID, msg.id)
+        return True
+    except Exception:
+        # A failed archive copy must not prevent delivery to the requesting user.
+        logger.exception("Could not upload a copy to archive channel %s", ARCHIVE_CHANNEL_ID)
+        return False
