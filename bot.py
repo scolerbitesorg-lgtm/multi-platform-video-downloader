@@ -31,6 +31,7 @@ from config import (
     ADMIN_IDS,
     API_HASH,
     API_ID,
+    ARCHIVE_CHANNEL_ID,
     BOT_TOKEN,
     CACHE_PATH,
     FILE_CACHE_TTL,
@@ -334,6 +335,7 @@ async def post_init(app: Application) -> None:
     logger.info("Pyrogram uploader client started.")
     await uploader.prime_peer_cache()
     await uploader.check_relay_channel()
+    await uploader.check_archive_channel()
     try:
         await app.bot.get_chat(RELAY_CHANNEL_ID)
     except TelegramError as e:
@@ -522,6 +524,10 @@ async def handle_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         relay_msg = await uploader.send_to_relay(
             result, on_progress=updater.report, cancel_event=job.cancel_event,
         )
+        if ARCHIVE_CHANNEL_ID and ARCHIVE_CHANNEL_ID != RELAY_CHANNEL_ID:
+            archived = await uploader.send_to_archive(result)
+            if not archived:
+                logger.warning("Download succeeded but archive copy failed for %s", result.title)
         evicted = await asyncio.to_thread(store.put_file, result.key, choice.label, relay_msg.id)
         for old_id in evicted:
             context.application.create_task(_delete_relay_message(context.bot, old_id))
