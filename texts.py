@@ -98,6 +98,29 @@ def no_link() -> str:
     return f"{e('LINK')} Send me a link to a video and I'll download it for you."
 
 
+def playlist_start(total: int) -> str:
+    return (
+        f"{e('VIDEO')} <b>Playlist detected</b>\n\n"
+        f"I'll process up to {total} videos one by one at the best available quality. "
+        "This can take a while for long playlists."
+    )
+
+
+def playlist_progress(index: int, total: int, title: str, succeeded: int, failed: int) -> str:
+    return (
+        f"{e('DOWNLOAD')} <b>Playlist progress: {index}/{total}</b>\n"
+        f"Current: <b>{_title(title)}</b>\n\n"
+        f"{e('CHECK')} Sent: {succeeded} · Failed: {failed}"
+    )
+
+
+def playlist_done(succeeded: int, failed: int, total: int) -> str:
+    return (
+        f"{e('CHECK')} <b>Playlist finished</b>\n\n"
+        f"Processed: {total}\nSent: {succeeded}\nFailed: {failed}"
+    )
+
+
 # -- progress -----------------------------------------------------------------
 
 def fetching() -> str:
