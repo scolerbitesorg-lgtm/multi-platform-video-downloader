@@ -134,7 +134,7 @@ async def _send(
             progress=progress,
         )
     return await pyro.send_video(
-        chat_id=RELAY_CHANNEL_ID,
+        chat_id=chat_id,
         video=path,
         duration=result.duration,
         width=result.width,
